@@ -166,8 +166,8 @@ impl BlockAndWitnessData {
         start_trees.extend(get_all_main_checkpoints().into_iter().map(|(h, hash, tree)| {
             let mut tree_state = TreeState::default();
             tree_state.height = h;
-            tree_state.hash = hash.to_string();
-            tree_state.sapling_tree = tree.to_string();
+            tree_state.hash = hash;
+            tree_state.sapling_tree = tree;
 
             tree_state
         }));

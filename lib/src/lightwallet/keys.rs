@@ -167,9 +167,6 @@ impl<P: consensus::Parameters> Keys<P> {
         // we need to get the 64 byte bip39 entropy
         let bip39_seed = Seed::new(&Mnemonic::from_entropy(&seed_bytes, Language::English).unwrap(), "");
 
-        // Derive only the first sk and address
-        let tpk = WalletTKey::new_hdkey(config, 0, &bip39_seed.as_bytes());
-
         let mut zkeys = vec![];
         for hdkey_num in 0..num_zaddrs {
             let (extsk, _, _) = Self::get_zaddr_from_bip39seed(&config, &bip39_seed.as_bytes(), hdkey_num);
@@ -184,7 +181,7 @@ impl<P: consensus::Parameters> Keys<P> {
             nonce: vec![],
             seed: seed_bytes,
             zkeys,
-            tkeys: vec![tpk],
+            tkeys: vec![],
             zaddresses: vec![],
         })
     }
@@ -533,7 +530,7 @@ impl<P: consensus::Parameters> Keys<P> {
                     // If the wallet is locked, this is a no-op. That is fine, since we really
                     // need to only add new addresses when restoring a new wallet, when it will not be locked.
                     // Also, if it is locked, the user can't create new addresses anyway.
-                    self.add_taddr();
+                    // self.add_taddr();
                 }
             }
         }

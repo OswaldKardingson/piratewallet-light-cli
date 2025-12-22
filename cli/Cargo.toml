@@ -1,5 +1,5 @@
 [package]
-name = "arrrwallet-cli"
+name = "zecwallet-cli"
 version = "1.7.20"
 edition = "2018"
 
@@ -14,4 +14,4 @@ http = "0.2"
 byteorder = "1"
 tiny-bip39 = "0.6.2"
 
-piratewalletlitelib = { path = "../lib/" }
+zecwalletlitelib = { path = "../lib/" }

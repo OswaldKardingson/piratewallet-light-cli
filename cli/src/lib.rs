@@ -4,9 +4,9 @@ use std::sync::Arc;
 
 use log::{error, info};
 
-use piratewalletlitelib::lightclient::lightclient_config::LightClientConfig;
-use piratewalletlitelib::{commands, lightclient::LightClient};
-use piratewalletlitelib::{MainNetwork, Parameters};
+use zecwalletlitelib::lightclient::lightclient_config::LightClientConfig;
+use zecwalletlitelib::{commands, lightclient::LightClient};
+use zecwalletlitelib::{MainNetwork, Parameters};
 
 pub mod version;
 
@@ -15,7 +15,7 @@ macro_rules! configure_clapapp {
     ( $freshapp: expr ) => {
     $freshapp.version(VERSION)
             .arg(Arg::with_name("nosync")
-                .help("By default, arrrwallet-cli will sync the wallet at startup. Pass --nosync to prevent the automatic sync at startup.")
+                .help("By default, zecwallet-cli will sync the wallet at startup. Pass --nosync to prevent the automatic sync at startup.")
                 .long("nosync")
                 .short("n")
                 .takes_value(false))
@@ -41,11 +41,11 @@ macro_rules! configure_clapapp {
             .arg(Arg::with_name("server")
                 .long("server")
                 .value_name("server")
-                .help("Lightwalletd server to connect to.")
+                .help("Lightwalletd server to connect to. Known servers: https://lightd1.pirate.black:443, https://piratelightd1.cryptoforge.cc:443, https://piratelightd2.cryptoforge.cc:443.")
                 .takes_value(true)
                 .default_value(lightclient::lightclient_config::DEFAULT_SERVER))
             .arg(Arg::with_name("COMMAND")
-                .help("Command to execute. If a command is not specified, arrrwallet-cli will start in interactive mode.")
+                .help("Command to execute. If a command is not specified, zecwallet-cli will start in interactive mode.")
                 .required(false)
                 .index(1))
             .arg(Arg::with_name("PARAMS")
@@ -98,7 +98,7 @@ pub fn startup(
 
     // Print startup Messages
     info!(""); // Blank line
-    info!("Starting Arrrwallet-CLI");
+    info!("Starting Zecwallet-CLI");
     info!("Light Client config {:?}", config);
 
     if print_updates {

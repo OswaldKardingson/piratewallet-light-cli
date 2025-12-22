@@ -22,7 +22,7 @@ use zcash_primitives::{
 
 use crate::{grpc_connector::GrpcConnector, lightclient::checkpoints};
 
-pub const DEFAULT_SERVER: &str = "https://piratelightd4.cryptoforge.cc:443";
+pub const DEFAULT_SERVER: &str = "https://lightd1.pirate.black:443";
 pub const WALLET_NAME: &str    = "arrr-light-wallet.dat";
 pub const LOGFILE_NAME: &str   = "debug-arrr-light-wallet.log";
 pub const ANCHOR_OFFSET: [u32; 5] = [4, 0, 0, 0, 0];
@@ -332,7 +332,7 @@ impl<P: consensus::Parameters> LightClientConfig<P> {
             }
             Err(e) => {
                 error!("Error getting sapling tree:{}\nWill return checkpoint instead.", e);
-                match checkpoints::get_closest_checkpoint(&self.chain_name, height) {
+                match checkpoints::get_closest_checkpoint(&self.chain_name, self.get_coin_type(), height) {
                     Some((height, hash, tree)) => Some((height, hash.to_string(), tree.to_string())),
                     None => None,
                 }

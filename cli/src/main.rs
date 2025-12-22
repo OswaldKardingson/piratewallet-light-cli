@@ -1,8 +1,8 @@
 use log::error;
-use arrrwallet_cli::{
+use zecwallet_cli::{
     attempt_recover_seed, configure_clapapp, report_permission_error, start_interactive, startup, version::VERSION,
 };
-use piratewalletlitelib::{
+use zecwalletlitelib::{
     lightclient::{self, lightclient_config::LightClientConfig},
     MainNetwork,
 };
@@ -10,7 +10,7 @@ use piratewalletlitelib::{
 pub fn main() {
     // Get command line arguments
     use clap::{App, Arg};
-    let fresh_app = App::new("Arrrwallet CLI");
+    let fresh_app = App::new("Zecwallet CLI");
     let configured_app = configure_clapapp!(fresh_app);
     let matches = configured_app.get_matches();
 

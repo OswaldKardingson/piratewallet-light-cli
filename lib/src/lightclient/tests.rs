@@ -1079,7 +1079,7 @@ async fn recover_at_checkpoint() {
     data.write()
         .await
         .tree_states
-        .push((ckpt_height, hash.to_string(), tree.to_string()));
+        .push((ckpt_height, hash.clone(), tree.clone()));
 
     // 2. Mine 110 blocks after 1220000
     let mut fcbl = FakeCompactBlockList::new(0);
