@@ -224,6 +224,21 @@ impl<P: consensus::Parameters> TestGRPCService<P> {
 
 #[tonic::async_trait]
 impl<P: consensus::Parameters + Send + Sync + 'static> CompactTxStreamer for TestGRPCService<P> {
+    async fn get_lite_wallet_block_group(
+        &self,
+        _request: Request<BlockId>,
+    ) -> Result<Response<BlockId>, Status> {
+        Self::wait_random().await;
+
+        match self.data.read().await.blocks.iter().max_by_key(|b| b.height) {
+            Some(latest_block) => Ok(Response::new(BlockId {
+                height: latest_block.height,
+                hash: latest_block.hash.clone(),
+            })),
+            None => Err(Status::unavailable("No blocks")),
+        }
+    }
+
     async fn get_latest_block(&self, _request: Request<ChainSpec>) -> Result<Response<BlockId>, Status> {
         Self::wait_random().await;
 
@@ -404,7 +419,7 @@ impl<P: consensus::Parameters + Send + Sync + 'static> CompactTxStreamer for Tes
             let mut ts = TreeState::default();
             ts.height = *height;
             ts.hash = hash.clone();
-            ts.tree = tree.clone();
+            ts.sapling_tree = tree.clone();
 
             return Ok(Response::new(ts));
         }
@@ -453,7 +468,7 @@ impl<P: consensus::Parameters + Send + Sync + 'static> CompactTxStreamer for Tes
         )
         .to_string();
         ts.height = block.height;
-        ts.tree = tree_to_string(&tree);
+        ts.sapling_tree = tree_to_string(&tree);
 
         Ok(Response::new(ts))
     }

@@ -74,6 +74,26 @@ fn decode_base58_field(field: &str, value: &str, allow_empty: bool) -> Result<Ve
         .map_err(|e| format!("Invalid base58 for {}: {:?}", field, e))
 }
 
+pub(crate) fn parse_raw_transaction<P: consensus::Parameters>(
+    config: &LightClientConfig<P>,
+    raw_tx: &RawTransaction,
+    fallback_height: u32,
+) -> Result<Transaction, String> {
+    if raw_tx.data.is_empty() {
+        return Err("Raw transaction data is empty".to_string());
+    }
+
+    let height = if raw_tx.height == 0 {
+        fallback_height
+    } else {
+        u32::try_from(raw_tx.height).map_err(|_| "Transaction height is out of range".to_string())?
+    };
+
+    let branch_id = BranchId::for_height(&config.get_params(), BlockHeight::from_u32(height));
+    Transaction::read(&raw_tx.data[..], branch_id)
+        .map_err(|e| format!("Error parsing Transaction: {}", e))
+}
+
 #[derive(Clone, Debug)]
 pub struct WalletStatus {
     pub is_syncing: bool,
@@ -1901,6 +1921,22 @@ impl<P: consensus::Parameters + Send + Sync + 'static> LightClient<P> {
         let tx_version = TxVersion::suggested_for_branch(branch_id);
         let expiry_height = BlockHeight::from_u32(target_height + 20);
 
+        let mut txid_arr = [0u8; 32];
+        txid_arr.copy_from_slice(&txid_bytes);
+        let funding_txid = TxId::from_bytes(txid_arr);
+        let funding_raw_tx =
+            GrpcConnector::get_transaction(self.get_server_uri(), &funding_txid).await?;
+        let funding_tx = parse_raw_transaction(&self.config, &funding_raw_tx, target_height)?;
+        let funding_bundle = funding_tx
+            .transparent_bundle()
+            .ok_or_else(|| "Funding transaction has no transparent outputs".to_string())?;
+        let funding_output = funding_bundle
+            .vout
+            .get(0)
+            .ok_or_else(|| "Funding transaction is missing vout 0".to_string())?;
+        let funding_value = funding_output.value;
+        let funding_script_pubkey = funding_output.script_pubkey.clone();
+
         let fee_amount = Amount::from_u64(*fee).map_err(|_| "Invalid fee amount".to_string())?;
         let mut outputs_total = Amount::zero();
         let mut transparent_vout = Vec::new();
@@ -1939,12 +1975,13 @@ impl<P: consensus::Parameters + Send + Sync + 'static> LightClient<P> {
         let expected_total = (outputs_total + fee_amount)
             .ok_or_else(|| "Invalid output total".to_string())?;
 
-        let mut txid_arr = [0u8; 32];
-        txid_arr.copy_from_slice(&txid_bytes);
         let outpoint = OutPoint::new(txid_arr, 0);
+        if funding_value < expected_total {
+            return Err("Funding output value is less than outputs plus fee".to_string());
+        }
         let funding_coin = TxOut {
-            value: expected_total,
-            script_pubkey: Script(redeem_script.clone()),
+            value: funding_value,
+            script_pubkey: funding_script_pubkey.clone(),
         };
 
         let vin = vec![TxIn {
@@ -1957,7 +1994,7 @@ impl<P: consensus::Parameters + Send + Sync + 'static> LightClient<P> {
             vout: transparent_vout.clone(),
             authorization: TransparentAuthContext {
                 input_amounts: vec![funding_coin.value],
-                input_scriptpubkeys: vec![funding_coin.script_pubkey.clone()],
+                input_scriptpubkeys: vec![funding_script_pubkey.clone()],
             },
         });
 

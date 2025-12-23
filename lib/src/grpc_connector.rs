@@ -496,4 +496,22 @@ impl GrpcConnector {
             Err(format!("Error: {:?}", sendresponse))
         }
     }
+
+    pub async fn get_transaction(uri: http::Uri, txid: &TxId) -> Result<RawTransaction, String> {
+        let client = Arc::new(GrpcConnector::new(uri));
+        let mut client = client
+            .get_client()
+            .await
+            .map_err(|e| format!("Error getting client: {:?}", e))?;
+
+        let request = Request::new(TxFilter {
+            block: None,
+            index: 0,
+            hash: txid.as_ref().to_vec(),
+        });
+
+        let response = client.get_transaction(request).await.map_err(|e| format!("{}", e))?;
+
+        Ok(response.into_inner())
+    }
 }

@@ -21,26 +21,32 @@ use zcash_primitives::memo::Memo;
 use zcash_primitives::merkle_tree::{CommitmentTree, IncrementalWitness};
 use zcash_primitives::sapling::note_encryption::SaplingDomain;
 use zcash_primitives::sapling::redjubjub::Signature;
-use zcash_primitives::transaction::components::{sapling, Amount};
+use zcash_primitives::legacy::Script;
+use zcash_primitives::transaction::components::{
+    sapling,
+    transparent::{Authorized, Bundle, OutPoint, TxIn, TxOut},
+    Amount,
+};
 
 use zcash_primitives::sapling::Node;
 use zcash_primitives::sapling::{Note, Rseed, ValueCommitment};
 use zcash_primitives::transaction::components::amount::DEFAULT_FEE;
 use zcash_primitives::transaction::components::{OutputDescription, GROTH_PROOF_SIZE};
-use zcash_primitives::transaction::Transaction;
+use zcash_primitives::transaction::{Transaction, TransactionData, TxVersion};
 use zcash_primitives::zip32::{ExtendedFullViewingKey, ExtendedSpendingKey};
 
 use crate::blaze::fetch_full_tx::FetchFullTxns;
 use crate::blaze::test_utils::{FakeCompactBlockList, FakeTransaction};
 use crate::compact_formats::compact_tx_streamer_client::CompactTxStreamerClient;
 
-use crate::compact_formats::{CompactOutput, CompactTx, Empty};
+use crate::compact_formats::{CompactOutput, CompactTx, Empty, RawTransaction};
 use crate::lightclient::faketx::new_transactiondata;
 use crate::lightclient::test_server::{create_test_server, mine_pending_blocks, mine_random_blocks};
 use crate::lightclient::LightClient;
 use crate::lightwallet::data::WalletTx;
 
 use super::checkpoints;
+use super::parse_raw_transaction;
 use super::lightclient_config::{LightClientConfig, UnitTestNetwork};
 
 #[test]
@@ -71,6 +77,61 @@ fn new_wallet_from_phrase() {
         );
         println!("z {}", lc.do_export(None).await.unwrap().pretty(2));
     });
+}
+
+#[test]
+fn parse_raw_tx_uses_vout0_value() {
+    let config = LightClientConfig::create_unconnected(UnitTestNetwork, None);
+    let height = BlockHeight::from_u32(1);
+    let branch_id = BranchId::for_height(&UnitTestNetwork, height);
+    let tx_version = TxVersion::suggested_for_branch(branch_id);
+
+    let txout_value = Amount::from_u64(5_500_010_008).unwrap();
+    let txout = TxOut {
+        value: txout_value,
+        script_pubkey: Script(vec![0x6a, 0x00]),
+    };
+
+    let txin = TxIn {
+        prevout: OutPoint::new([0u8; 32], 0),
+        script_sig: Script::default(),
+        sequence: 0xffffffff,
+    };
+
+    let bundle = Bundle {
+        vin: vec![txin],
+        vout: vec![txout.clone()],
+        authorization: Authorized,
+    };
+
+    let tx_data = TransactionData::from_parts(
+        tx_version,
+        branch_id,
+        0,
+        BlockHeight::from_u32(0),
+        Some(bundle),
+        None,
+        None,
+        None,
+        #[cfg(feature = "zfuture")]
+        None,
+    );
+
+    let tx = tx_data.freeze().unwrap();
+    let mut data = vec![];
+    tx.write(&mut data).unwrap();
+
+    let raw_tx = RawTransaction { data, height: 0 };
+    let parsed = parse_raw_transaction(&config, &raw_tx, height.into()).unwrap();
+    let parsed_value = parsed
+        .transparent_bundle()
+        .unwrap()
+        .vout
+        .get(0)
+        .unwrap()
+        .value;
+
+    assert_eq!(parsed_value, txout_value);
 }
 
 #[test]
