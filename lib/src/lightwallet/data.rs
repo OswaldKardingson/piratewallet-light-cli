@@ -731,9 +731,15 @@ impl WalletTx {
         // Outgoing metadata was only added in version 2
         let outgoing_metadata = Vector::read(&mut reader, |r| OutgoingTxMetadata::read(r,version))?;
 
-        if version < 21 { //Removed in version 21
-            let _outgoing_metadata = Vector::read(&mut reader, |r| OutgoingTxMetadata::read(r,version))?;
-        }
+        // if version < 21 { //Removed in version 21
+        //     let _outgoing_metadata = Vector::read(&mut reader, |r| OutgoingTxMetadata::read(r,version))?;
+        // }
+
+        let outgoing_metadata_change = if version < 21 {
+            Vector::read(&mut reader, |r| OutgoingTxMetadata::read(r, version))?
+        } else {
+            vec![]
+        };
 
         let full_tx_scanned = reader.read_u8()? > 0;
 
@@ -769,6 +775,7 @@ impl WalletTx {
             total_sapling_value_spent,
             total_transparent_value_spent,
             outgoing_metadata,
+            outgoing_metadata_change,
             full_tx_scanned,
             value_balance,
             arrr_price,
